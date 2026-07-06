@@ -1,3 +1,5 @@
+import os
+
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 
@@ -5,7 +7,8 @@ from .services import get_dashboard_snapshot
 
 
 def _cors(response):
-    response["Access-Control-Allow-Origin"] = "http://localhost:3000"
+    allowed_origin = os.environ.get("FRONTEND_URL", "http://localhost:3000")
+    response["Access-Control-Allow-Origin"] = allowed_origin
     response["Access-Control-Allow-Methods"] = "GET, OPTIONS"
     response["Access-Control-Allow-Headers"] = "Content-Type"
     return response
