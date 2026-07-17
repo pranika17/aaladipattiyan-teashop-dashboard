@@ -1,6 +1,7 @@
 import json
 import os
 from datetime import datetime
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
@@ -90,6 +91,19 @@ ITEM_GROUPS = {
         ],
     },
 }
+
+
+def _quantity(value):
+    """Preserve decimal POS quantities instead of truncating them to integers."""
+    try:
+        return Decimal(str(value or 0))
+    except (InvalidOperation, ValueError):
+        return Decimal("0")
+
+
+def _json_quantity(value):
+    value = _quantity(value)
+    return int(value) if value == value.to_integral_value() else float(value)
 
 
 def _load_env_file():
@@ -277,13 +291,15 @@ def get_dashboard_snapshot(sales_date=None):
             {
                 "key": key,
                 "label": group["label"],
-                "totalQty": sum(int(item.get("totalQty") or 0) for item in group_items),
+                "totalQty": _json_quantity(
+                    sum((_quantity(item.get("totalQty")) for item in group_items), Decimal("0"))
+                ),
                 "totalBills": sum(int(item.get("totalBills") or 0) for item in group_items),
                 "itemCount": len(group["codes"]),
                 "soldItems": [
                     item
                     for item in group_items
-                    if int(item.get("totalQty") or 0) > 0 or item.get("hadSalesToday")
+                    if _quantity(item.get("totalQty")) > 0 or item.get("hadSalesToday")
                 ],
             }
         )

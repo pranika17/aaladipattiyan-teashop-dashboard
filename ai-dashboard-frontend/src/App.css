@@ -696,11 +696,25 @@ th {
   top: 0;
 }
 
-td:nth-child(4),
-td:nth-child(5) {
+td:nth-child(5),
+td:nth-child(6) {
   color: var(--red);
   font-weight: 950;
 }
+
+.item-status {
+  background: #eee6d9;
+  border-radius: 999px;
+  color: var(--muted);
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 900;
+  padding: 6px 9px;
+  white-space: nowrap;
+}
+
+.item-status.sold { background: #dcefe3; color: var(--green); }
+.item-status.code-not-found { background: #f7ddd5; color: var(--red); }
 
 tbody tr {
   transition: background 150ms ease;

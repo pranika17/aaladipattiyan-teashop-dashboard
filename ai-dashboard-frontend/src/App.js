@@ -106,9 +106,12 @@ function App() {
         </section>
         <section className="content-grid single"><article className="panel">
           <div className="panel-heading"><div><h2>Item Wise Count</h2><p>{snapshot?.meta?.itemCodesRequested || 0} POS item codes · updated {formatTime(snapshot?.meta?.lastUpdated)}</p></div><span className={refreshing ? 'status-dot active' : 'status-dot'} /></div>
-          <div className="table-wrap"><table><thead><tr><th>Code</th><th>Item</th><th>Category</th><th>Qty</th><th>Bills</th></tr></thead><tbody>
-            {sortedItems.map((item) => <tr key={`${item.itemCode}-${item.itemName}`}><td>{item.itemCode}</td><td>{item.itemName || 'Name not returned'}</td><td>{item.category || item.localCategory || 'Not mapped'}</td><td>{item.totalQty || 0}</td><td>{item.totalBills || 0}</td></tr>)}
-            {!loading && sortedItems.length === 0 && <tr><td colSpan="5" className="empty-state">No POS item rows returned for this date.</td></tr>}
+          <div className="table-wrap"><table><thead><tr><th>Code</th><th>Item</th><th>Category</th><th>Status</th><th>Qty</th><th>Bills</th></tr></thead><tbody>
+            {sortedItems.map((item) => {
+              const status = !item.foundInPOS ? 'Code not found' : item.hadSalesToday ? 'Sold' : 'No sales';
+              return <tr key={`${item.itemCode}-${item.itemName}`}><td>{item.itemCode}</td><td>{item.itemName || 'Name not returned'}</td><td>{item.category || item.localCategory || 'Not mapped'}</td><td><span className={`item-status ${status.toLowerCase().replaceAll(' ', '-')}`}>{status}</span></td><td>{item.totalQty || 0}</td><td>{item.totalBills || 0}</td></tr>;
+            })}
+            {!loading && sortedItems.length === 0 && <tr><td colSpan="6" className="empty-state">No POS item rows returned for this date.</td></tr>}
           </tbody></table></div>
         </article></section>
       </>}

@@ -70,4 +70,17 @@ class ReconciliationTests(TestCase):
         self.assertEqual(result["camera"]["latest"]["cupCount"], 1)
         self.assertEqual(result["meta"]["source"], "Neon AI camera database")
 
+    @patch("dashboard.services._camera_snapshot", return_value={"latest": None})
+    @patch("dashboard.services._request_pos_sales")
+    def test_decimal_pos_quantities_are_not_truncated(self, pos, camera):
+        pos.return_value = {
+            "date": "2026-07-17", "outlet": {"code": "UPK"},
+            "summary": {"totalBills": 1},
+            "items": [{"itemCode": "1.5Q", "totalQty": 1.5, "totalBills": 1}],
+        }
+        result = get_dashboard_snapshot("2026-07-17")
+        tea = next(group for group in result["groups"] if group["key"] == "tea")
+        self.assertEqual(tea["totalQty"], 1.5)
+        self.assertEqual(result["reconciliation"]["billedDrinkQty"], 1.5)
+
 # Create your tests here.
