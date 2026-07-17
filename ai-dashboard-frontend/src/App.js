@@ -63,7 +63,9 @@ function App() {
     ((b.totalQty || 0) - (a.totalQty || 0)) ||
     String(a.itemName || a.itemCode).localeCompare(String(b.itemName || b.itemCode))), [snapshot]);
   const groups = snapshot?.groups || [];
-  const totalQty = groups.reduce((sum, group) => sum + group.totalQty, 0);
+  const drinkQty = groups
+    .filter((group) => group.key !== 'biscuits')
+    .reduce((sum, group) => sum + group.totalQty, 0);
   const camera = snapshot?.camera;
   const latest = camera?.latest;
   const daily = camera?.daily;
@@ -97,7 +99,7 @@ function App() {
 
       {!isCamera && <>
         <section className="summary-grid" aria-label="Sales summary">
-          <article className="summary-tile primary"><span>Total Quantity</span><strong>{loading ? '--' : totalQty}</strong><small>Items sold today</small></article>
+          <article className="summary-tile primary"><span>Billed Drink Quantity</span><strong>{loading ? '--' : drinkQty}</strong><small>Biscuits excluded</small></article>
           <article className="summary-tile"><span>Total Bills</span><strong>{loading ? '--' : snapshot?.summary?.totalBills ?? 0}</strong><small>POS bill count</small></article>
           <article className="summary-tile"><span>Outlet</span><strong>{snapshot?.outlet?.code || 'UPK'}</strong><small>{snapshot?.outlet?.name || 'Urapakkam'}</small></article>
           <article className="summary-tile"><span>Last Update</span><strong>{formatTime(snapshot?.meta?.lastUpdated)}</strong><small>Auto refresh</small></article>
