@@ -3,7 +3,9 @@ import './App.css';
 
 const BILLING_API = process.env.REACT_APP_DASHBOARD_API || 'http://localhost:8000/api/dashboard/live/';
 const CAMERA_API = process.env.REACT_APP_CAMERA_API || BILLING_API.replace('/dashboard/live/', '/camera/live/');
-const REFRESH_MS = 5000;
+// The POS integration allows 10,000 requests/day. A 30-second display refresh
+// stays live while remaining safely below the documented quota.
+const REFRESH_MS = 30000;
 
 function todayInIndia() {
   return new Intl.DateTimeFormat('en-CA', {

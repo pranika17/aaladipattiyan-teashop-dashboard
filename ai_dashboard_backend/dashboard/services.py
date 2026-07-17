@@ -6,6 +6,7 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 from zoneinfo import ZoneInfo
 
+from django.core.cache import cache
 from django.db import DatabaseError, connection
 
 
@@ -133,6 +134,13 @@ def _request_pos_sales(sales_date):
     base_url = os.environ.get("POS_BASE_URL", DEFAULT_BASE_URL).rstrip("/")
     outlet = os.environ.get("OUTLET_CODE") or os.environ.get("POS_OUTLET") or "UPK"
 
+    # Share one recent POS response between all browser/TV viewers. Without
+    # this, every open dashboard consumes the external API quota separately.
+    cache_key = f"pos-sales-items:{outlet}:{sales_date}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
     if not api_key:
         raise RuntimeError("POS_API_KEY is missing in ai_dashboard_backend/.env")
 
@@ -154,7 +162,9 @@ def _request_pos_sales(sales_date):
 
     try:
         with urlopen(request, timeout=12) as response:
-            return json.loads(response.read().decode("utf-8"))
+            result = json.loads(response.read().decode("utf-8"))
+            cache.set(cache_key, result, timeout=30)
+            return result
     except HTTPError as exc:
         message = exc.read().decode("utf-8", errors="replace")
         raise RuntimeError(f"POS API returned {exc.code}: {message}") from exc
