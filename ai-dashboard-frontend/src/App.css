@@ -217,13 +217,186 @@ h2 {
 }
 
 .alert,
+.dashboard-nav,
 .summary-grid,
 .category-grid,
+.camera-panel,
 .content-grid {
   margin-left: auto;
   margin-right: auto;
   max-width: 1320px;
   position: relative;
+}
+
+.dashboard-nav {
+  background: rgba(21, 16, 13, 0.92);
+  border: 1px solid rgba(255, 201, 40, 0.28);
+  border-radius: 8px;
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+  padding: 7px;
+}
+
+.dashboard-nav a {
+  border-radius: 6px;
+  color: #f1d8a5;
+  flex: 1;
+  font-weight: 900;
+  padding: 12px 18px;
+  text-align: center;
+  text-decoration: none;
+}
+
+.dashboard-nav a.active {
+  background: linear-gradient(135deg, var(--yellow), var(--orange));
+  color: var(--sign);
+}
+
+.camera-panel {
+  background: linear-gradient(135deg, rgba(21, 16, 13, 0.98), rgba(65, 38, 22, 0.96));
+  border: 1px solid rgba(255, 201, 40, 0.3);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  margin-bottom: 14px;
+  padding: 18px;
+}
+
+.match-panel {
+  background: var(--surface);
+  border: 1px solid rgba(255, 201, 40, 0.32);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  margin: 0 auto 14px;
+  max-width: 1320px;
+  padding: 18px;
+  position: relative;
+}
+
+.match-heading,
+.match-flow {
+  align-items: center;
+  display: flex;
+}
+
+.match-heading {
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.match-heading h2 { margin: 0; }
+
+.match-badge {
+  background: #e4f2e9;
+  border-radius: 999px;
+  color: var(--green);
+  font-size: 0.76rem;
+  font-weight: 900;
+  padding: 8px 12px;
+  text-transform: uppercase;
+}
+
+.match-badge.waiting_for_camera {
+  background: #fbe7df;
+  color: var(--red);
+}
+
+.match-flow {
+  gap: 12px;
+}
+
+.match-flow article {
+  background: #fff3d5;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  flex: 1;
+  gap: 6px;
+  min-height: 116px;
+  padding: 16px;
+}
+
+.match-flow article.camera-health { background: #eaf4ed; }
+
+.match-flow span,
+.match-flow small {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.match-flow strong { font-size: 2rem; }
+.match-arrow { color: var(--orange); font-size: 1.8rem; font-weight: 900; }
+
+.match-note {
+  background: #f7eee0;
+  border-left: 4px solid var(--orange);
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.5;
+  margin: 12px 0 0;
+  padding: 10px 12px;
+}
+
+.camera-heading,
+.camera-status {
+  align-items: center;
+  display: flex;
+}
+
+.camera-heading {
+  gap: 18px;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.camera-heading h2 {
+  color: #fff3cf;
+  margin: 0;
+}
+
+.camera-heading .eyebrow {
+  margin-bottom: 5px;
+}
+
+.camera-status {
+  color: #f1d8a5;
+  font-size: 0.82rem;
+  font-weight: 800;
+  gap: 12px;
+  text-align: right;
+}
+
+.status-dot.offline {
+  background: var(--red);
+  box-shadow: 0 0 0 6px rgba(189, 63, 35, 0.18);
+}
+
+.camera-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.camera-tile {
+  background: rgba(255, 248, 233, 0.96);
+  border-radius: 8px;
+  display: grid;
+  gap: 8px;
+  min-height: 116px;
+  padding: 16px;
+}
+
+.camera-tile span,
+.camera-tile small {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.camera-tile strong {
+  color: var(--red);
+  font-size: 2rem;
 }
 
 .alert {
@@ -601,7 +774,8 @@ tbody tr:hover {
 
 @media (max-width: 1060px) {
   .summary-grid,
-  .category-grid {
+  .category-grid,
+  .camera-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -621,6 +795,8 @@ tbody tr:hover {
     flex-direction: column;
   }
 
+  .dashboard-nav { flex-direction: column; }
+
   .brand-block {
     align-items: flex-start;
   }
@@ -631,11 +807,29 @@ tbody tr:hover {
   }
 
   .summary-grid,
-  .category-grid {
+  .category-grid,
+  .camera-grid {
     grid-template-columns: 1fr;
   }
 
   h1 {
     font-size: 2rem;
   }
+
+  .camera-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .camera-status {
+    text-align: left;
+  }
+
+  .match-heading,
+  .match-flow {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .match-arrow { text-align: center; transform: rotate(90deg); }
 }

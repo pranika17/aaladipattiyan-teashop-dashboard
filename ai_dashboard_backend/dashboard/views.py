@@ -5,7 +5,7 @@ import os
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 
-from .services import get_dashboard_snapshot
+from .services import get_camera_dashboard_snapshot, get_dashboard_snapshot
 
 
 def _cors(response):
@@ -43,6 +43,19 @@ def live_dashboard(request):
     except Exception as exc:
         response = JsonResponse({"error": str(exc)}, status=502)
 
+    return _cors(response)
+
+
+@csrf_exempt
+def camera_live_dashboard(request):
+    if request.method == "OPTIONS":
+        return _cors(JsonResponse({}))
+    if request.method != "GET":
+        return _cors(JsonResponse({"error": "Method not allowed"}, status=405))
+    try:
+        response = JsonResponse(get_camera_dashboard_snapshot(request.GET.get("date")))
+    except Exception as exc:
+        response = JsonResponse({"error": str(exc)}, status=502)
     return _cors(response)
 
 

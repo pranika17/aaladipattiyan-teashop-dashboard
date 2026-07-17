@@ -6,6 +6,8 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 from zoneinfo import ZoneInfo
 
+from django.db import DatabaseError, connection
+
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DEFAULT_BASE_URL = "https://pos.aaladipattiyan.in/pos"
@@ -99,7 +101,7 @@ def _load_env_file():
         if not line or line.startswith("#") or "=" not in line:
             continue
         key, value = line.split("=", 1)
-        os.environ[key.strip()] = value.strip().strip('"').strip("'")
+        os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
 
 
 def _today_ist():
@@ -160,6 +162,94 @@ def _request_pos_sales(sales_date):
         raise RuntimeError(f"Could not reach POS API: {exc.reason}") from exc
 
 
+def _camera_snapshot(sales_date, outlet):
+    """Return the latest frame and safe daily camera statistics.
+
+    ``cup_count`` is the number visible in a frame, not a sale event counter.  We
+    therefore expose maxima/sample counts but deliberately never sum frame rows.
+    """
+    if not os.environ.get("DATABASE_URL"):
+        return {
+            "configured": False,
+            "available": False,
+            "latest": None,
+            "message": "Camera database is not configured",
+        }
+
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                WITH day_rows AS (
+                    SELECT *
+                    FROM public.outlet_stats
+                    WHERE outlet_code = %s
+                      AND (ts AT TIME ZONE 'Asia/Kolkata')::date = %s::date
+                ), latest AS (
+                    SELECT * FROM day_rows ORDER BY ts DESC LIMIT 1
+                )
+                SELECT
+                    latest.id, latest.ts, latest.outlet_code,
+                    latest.cup_count, latest.staff_count,
+                    latest.customer_count, latest.empty_count,
+                    latest.inserted_at,
+                    stats.sample_count, stats.first_capture,
+                    stats.max_cups_visible, stats.max_staff,
+                    stats.max_customers
+                FROM latest
+                CROSS JOIN (
+                    SELECT COUNT(*) AS sample_count,
+                           MIN(ts) AS first_capture,
+                           MAX(COALESCE(cup_count, 0)) AS max_cups_visible,
+                           MAX(COALESCE(staff_count, 0)) AS max_staff,
+                           MAX(COALESCE(customer_count, 0)) AS max_customers
+                    FROM day_rows
+                ) stats
+                """,
+                [outlet, sales_date],
+            )
+            row = cursor.fetchone()
+    except DatabaseError:
+        return {
+            "configured": True,
+            "available": False,
+            "latest": None,
+            "message": "Camera data is temporarily unavailable",
+        }
+
+    if not row:
+        return {
+            "configured": True,
+            "available": True,
+            "latest": None,
+            "message": "No camera snapshots for this date",
+        }
+
+    return {
+        "configured": True,
+        "available": True,
+        "latest": {
+            "id": row[0],
+            "capturedAt": row[1].isoformat() if row[1] else None,
+            "outletCode": row[2],
+            "cupCount": int(row[3] or 0),
+            "staffCount": int(row[4] or 0),
+            "customerCount": int(row[5] or 0),
+            "emptyCount": int(row[6] or 0),
+            "insertedAt": row[7].isoformat() if row[7] else None,
+        },
+        "daily": {
+            "sampleCount": int(row[8] or 0),
+            "firstCapturedAt": row[9].isoformat() if row[9] else None,
+            "maxCupsVisible": int(row[10] or 0),
+            "maxStaff": int(row[11] or 0),
+            "maxCustomers": int(row[12] or 0),
+        },
+        "message": None,
+        "countingMode": "latest_snapshot",
+    }
+
+
 def get_dashboard_snapshot(sales_date=None):
     sales_date = sales_date or _today_ist()
     data = _request_pos_sales(sales_date)
@@ -188,15 +278,56 @@ def get_dashboard_snapshot(sales_date=None):
             }
         )
 
+    outlet_code = (
+        data.get("outlet", {}).get("code")
+        or os.environ.get("OUTLET_CODE")
+        or "UPK"
+    )
+
+    camera = _camera_snapshot(sales_date, outlet_code)
+    billed_drinks = sum(
+        group["totalQty"] for group in groups if group["key"] != "biscuits"
+    )
+
     return {
         "date": data.get("date", sales_date),
         "outlet": data.get("outlet", {}),
         "summary": data.get("summary", {"totalBills": 0}),
         "groups": groups,
         "items": items,
+        "camera": camera,
+        "reconciliation": {
+            "billedDrinkQty": billed_drinks,
+            "cameraCupsVisibleNow": (
+                camera.get("latest", {}).get("cupCount")
+                if camera.get("latest") else None
+            ),
+            "isComparable": False,
+            "status": "monitoring" if camera.get("latest") else "waiting_for_camera",
+            "message": (
+                "Camera cups are a live visible count; they cannot be matched to "
+                "daily billed cups until the AI stores one row per completed cup event."
+            ),
+        },
         "meta": {
             "source": "Aaladipattiyan POS",
             "itemCodesRequested": len(_unique_codes()),
+            "lastUpdated": datetime.now(ZoneInfo("Asia/Kolkata")).isoformat(),
+        },
+    }
+
+
+def get_camera_dashboard_snapshot(sales_date=None):
+    """Camera-only payload that does not depend on the POS service."""
+    _load_env_file()
+    sales_date = sales_date or _today_ist()
+    outlet_code = os.environ.get("OUTLET_CODE") or "UPK"
+    return {
+        "date": sales_date,
+        "outlet": {"code": outlet_code},
+        "camera": _camera_snapshot(sales_date, outlet_code),
+        "meta": {
+            "source": "Neon AI camera database",
             "lastUpdated": datetime.now(ZoneInfo("Asia/Kolkata")).isoformat(),
         },
     }
