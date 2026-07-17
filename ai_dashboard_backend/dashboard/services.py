@@ -270,7 +270,7 @@ def _camera_snapshot(sales_date, outlet):
             "maxCustomers": int(row[12] or 0),
         },
         "message": None,
-        "countingMode": "latest_snapshot",
+        "countingMode": "daily_cumulative",
     }
 
 
@@ -315,6 +315,19 @@ def get_dashboard_snapshot(sales_date=None):
         group["totalQty"] for group in groups if group["key"] != "biscuits"
     )
 
+    camera_total = (
+        camera.get("latest", {}).get("cupCount") if camera.get("latest") else None
+    )
+    if camera_total is None:
+        match_rate = None
+        difference = None
+        match_status = "waiting_for_camera"
+    else:
+        difference = camera_total - billed_drinks
+        larger = max(camera_total, billed_drinks)
+        match_rate = round((min(camera_total, billed_drinks) / larger * 100), 2) if larger else 100.0
+        match_status = "matched" if match_rate >= 98 else "minor_difference" if match_rate >= 95 else "not_matched"
+
     return {
         "date": data.get("date", sales_date),
         "outlet": data.get("outlet", {}),
@@ -324,16 +337,12 @@ def get_dashboard_snapshot(sales_date=None):
         "camera": camera,
         "reconciliation": {
             "billedDrinkQty": billed_drinks,
-            "cameraCupsVisibleNow": (
-                camera.get("latest", {}).get("cupCount")
-                if camera.get("latest") else None
-            ),
-            "isComparable": False,
-            "status": "monitoring" if camera.get("latest") else "waiting_for_camera",
-            "message": (
-                "Camera cups are a live visible count; they cannot be matched to "
-                "daily billed cups until the AI stores one row per completed cup event."
-            ),
+            "cameraCupTotal": camera_total,
+            "difference": difference,
+            "matchRate": match_rate,
+            "isComparable": camera_total is not None,
+            "status": match_status,
+            "message": "Daily billed drink quantity compared with the latest AI cumulative cup count.",
         },
         "meta": {
             "source": "Aaladipattiyan POS",

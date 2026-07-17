@@ -67,6 +67,11 @@ function App() {
   const camera = snapshot?.camera;
   const latest = camera?.latest;
   const daily = camera?.daily;
+  const match = snapshot?.reconciliation;
+  const matchLabel = {
+    matched: 'Matched', minor_difference: 'Minor difference',
+    not_matched: 'Not matched', waiting_for_camera: 'Waiting for camera',
+  }[match?.status] || 'Waiting for data';
 
   return (
     <main className="dashboard-shell">
@@ -104,6 +109,16 @@ function App() {
             <strong>{loading ? '--' : group.totalQty}</strong><small>{group.totalBills} item bill entries</small>
           </article>)}
         </section>
+        <section className="match-panel" aria-label="Billing and AI camera match">
+          <div className="match-heading"><div><p className="eyebrow">Billing × AI Camera</p><h2>Daily Cup Reconciliation</h2></div><span className={`match-badge ${match?.status || 'waiting_for_camera'}`}>{matchLabel}</span></div>
+          <div className="match-flow">
+            <article><span>Billing drink quantity</span><strong>{match?.billedDrinkQty ?? '--'}</strong><small>All configured drink categories</small></article>
+            <article><span>AI cumulative cups</span><strong>{match?.cameraCupTotal ?? '--'}</strong><small>Latest Neon total for today</small></article>
+            <article><span>Difference</span><strong>{match?.difference ?? '--'}</strong><small>AI minus billing</small></article>
+            <article className="camera-health"><span>Match rate</span><strong>{match?.matchRate != null ? `${match.matchRate}%` : '--'}</strong><small>98% or above is matched</small></article>
+          </div>
+          <p className="match-note">Both totals use outlet <strong>{snapshot?.outlet?.code || 'UPK'}</strong>, date <strong>{snapshot?.date || selectedDate}</strong> and India time.</p>
+        </section>
         <section className="content-grid single"><article className="panel">
           <div className="panel-heading"><div><h2>Item Wise Count</h2><p>{snapshot?.meta?.itemCodesRequested || 0} POS item codes · updated {formatTime(snapshot?.meta?.lastUpdated)}</p></div><span className={refreshing ? 'status-dot active' : 'status-dot'} /></div>
           <div className="table-wrap"><table><thead><tr><th>Code</th><th>Item</th><th>Category</th><th>Status</th><th>Qty</th><th>Bills</th></tr></thead><tbody>
@@ -119,14 +134,14 @@ function App() {
       {isCamera && <>
         <section className="summary-grid" aria-label="Camera summary">
           <article className="summary-tile primary"><span>Snapshots Today</span><strong>{daily?.sampleCount ?? 0}</strong><small>Neon camera rows received</small></article>
-          <article className="summary-tile"><span>Peak Cups Visible</span><strong>{daily?.maxCupsVisible ?? '--'}</strong><small>Highest single frame today</small></article>
+          <article className="summary-tile"><span>AI Cups Today</span><strong>{latest?.cupCount ?? '--'}</strong><small>Latest cumulative count</small></article>
           <article className="summary-tile"><span>Peak Staff</span><strong>{daily?.maxStaff ?? '--'}</strong><small>Highest detection today</small></article>
           <article className="summary-tile"><span>Last Update</span><strong>{formatTime(latest?.capturedAt)}</strong><small>{cameraAge(latest?.capturedAt)}</small></article>
         </section>
         <section className="camera-panel" aria-label="Live camera counts">
           <div className="camera-heading"><div><p className="eyebrow">AI Camera</p><h2>Latest Outlet Snapshot</h2></div><div className="camera-status"><span className={latest ? 'status-dot' : 'status-dot offline'} />{latest ? `Live · ${cameraAge(latest.capturedAt)}` : (camera?.message || 'Waiting for data')}</div></div>
           <div className="camera-grid">
-            <article className="camera-tile"><span>Cups Visible</span><strong>{latest?.cupCount ?? '--'}</strong><small>Latest camera frame</small></article>
+            <article className="camera-tile"><span>Cumulative Cups</span><strong>{latest?.cupCount ?? '--'}</strong><small>AI total for selected date</small></article>
             <article className="camera-tile"><span>Staff</span><strong>{latest?.staffCount ?? '--'}</strong><small>Currently detected</small></article>
             <article className="camera-tile"><span>Customers</span><strong>{latest?.customerCount ?? '--'}</strong><small>Currently detected</small></article>
             <article className="camera-tile"><span>Empty</span><strong>{latest?.emptyCount ?? '--'}</strong><small>Latest camera value</small></article>

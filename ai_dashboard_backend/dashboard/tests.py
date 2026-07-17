@@ -60,8 +60,9 @@ class ReconciliationTests(TestCase):
         result = get_dashboard_snapshot("2026-07-16")
 
         self.assertEqual(result["reconciliation"]["billedDrinkQty"], 3)
-        self.assertEqual(result["reconciliation"]["cameraCupsVisibleNow"], 1)
-        self.assertFalse(result["reconciliation"]["isComparable"])
+        self.assertEqual(result["reconciliation"]["cameraCupTotal"], 1)
+        self.assertTrue(result["reconciliation"]["isComparable"])
+        self.assertEqual(result["reconciliation"]["status"], "not_matched")
 
     @patch("dashboard.services._camera_snapshot")
     def test_camera_dashboard_does_not_call_pos(self, camera):
