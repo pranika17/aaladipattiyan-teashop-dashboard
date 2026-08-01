@@ -55,6 +55,7 @@ class ReconciliationTests(TestCase):
             "available": True,
             "latest": {"cupCount": 1},
             "daily": {"sampleCount": 41, "maxCupsVisible": 1},
+            "countingMode": "daily_cumulative",
         }
 
         result = get_dashboard_snapshot("2026-07-16")
@@ -63,6 +64,47 @@ class ReconciliationTests(TestCase):
         self.assertEqual(result["reconciliation"]["cameraCupTotal"], 1)
         self.assertTrue(result["reconciliation"]["isComparable"])
         self.assertEqual(result["reconciliation"]["status"], "not_matched")
+        self.assertEqual(result["reconciliation"]["absoluteDifference"], 2)
+        self.assertEqual(result["reconciliation"]["differenceDirection"], "camera_under")
+
+    @patch("dashboard.services._camera_snapshot")
+    @patch("dashboard.services._request_pos_sales")
+    def test_any_nonzero_difference_is_reported_as_not_matched(self, pos, camera):
+        pos.return_value = {
+            "date": "2026-07-16",
+            "outlet": {"code": "UPK"},
+            "items": [{"itemCode": "BDT", "totalQty": 100, "totalBills": 50}],
+        }
+        camera.return_value = {
+            "available": True,
+            "latest": {"cupCount": 99},
+            "countingMode": "daily_cumulative",
+        }
+
+        result = get_dashboard_snapshot("2026-07-16")["reconciliation"]
+
+        self.assertEqual(result["matchRate"], 99.0)
+        self.assertEqual(result["status"], "not_matched")
+        self.assertEqual(result["absoluteDifference"], 1)
+
+    @patch("dashboard.services._camera_snapshot")
+    @patch("dashboard.services._request_pos_sales")
+    def test_snapshot_camera_count_is_not_compared_to_daily_billing(self, pos, camera):
+        pos.return_value = {
+            "date": "2026-07-16",
+            "outlet": {"code": "UPK"},
+            "items": [{"itemCode": "BDT", "totalQty": 3, "totalBills": 2}],
+        }
+        camera.return_value = {
+            "available": True,
+            "latest": {"cupCount": 3},
+            "countingMode": "latest_snapshot",
+        }
+
+        result = get_dashboard_snapshot("2026-07-16")["reconciliation"]
+
+        self.assertFalse(result["isComparable"])
+        self.assertEqual(result["status"], "not_comparable")
 
     @patch("dashboard.services._camera_snapshot")
     def test_camera_dashboard_does_not_call_pos(self, camera):

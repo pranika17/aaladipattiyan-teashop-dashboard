@@ -296,13 +296,13 @@ h2 {
   text-transform: uppercase;
 }
 
-.match-badge.waiting_for_camera {
+.match-badge.waiting_for_camera,
+.match-badge.not_comparable {
   background: #fbe7df;
   color: var(--red);
 }
 
 .match-badge.not_matched { background: #f7ddd5; color: var(--red); }
-.match-badge.minor_difference { background: #fff0c2; color: #8a5a00; }
 
 .match-flow {
   gap: 12px;

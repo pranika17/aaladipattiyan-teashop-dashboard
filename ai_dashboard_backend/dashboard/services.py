@@ -187,10 +187,11 @@ def _request_pos_sales(sales_date):
 
 
 def _camera_snapshot(sales_date, outlet):
-    """Return the latest frame and safe daily camera statistics.
+    """Return the camera team's latest daily cumulative count and diagnostics.
 
-    ``cup_count`` is the number visible in a frame, not a sale event counter.  We
-    therefore expose maxima/sample counts but deliberately never sum frame rows.
+    Each row is a snapshot of the camera service's cumulative counter. Summing
+    rows would count the same cups repeatedly, so the latest row is the daily
+    total used for reconciliation.
     """
     if not os.environ.get("DATABASE_URL"):
         return {
@@ -274,6 +275,61 @@ def _camera_snapshot(sales_date, outlet):
     }
 
 
+def _reconcile_counts(billed_drinks, camera):
+    """Compare like-for-like daily totals and expose every mismatch."""
+    camera_total = (
+        camera.get("latest", {}).get("cupCount") if camera.get("latest") else None
+    )
+    counting_mode = camera.get("countingMode")
+
+    if camera_total is None:
+        return {
+            "billedDrinkQty": billed_drinks,
+            "cameraCupTotal": None,
+            "difference": None,
+            "absoluteDifference": None,
+            "differenceDirection": None,
+            "matchRate": None,
+            "isComparable": False,
+            "status": "waiting_for_camera",
+            "message": camera.get("message") or "Waiting for the AI camera daily count.",
+        }
+
+    if counting_mode != "daily_cumulative":
+        return {
+            "billedDrinkQty": billed_drinks,
+            "cameraCupTotal": camera_total,
+            "difference": None,
+            "absoluteDifference": None,
+            "differenceDirection": None,
+            "matchRate": None,
+            "isComparable": False,
+            "status": "not_comparable",
+            "message": "The camera value is not a daily cumulative count, so it cannot be compared with daily billing.",
+        }
+
+    difference = camera_total - billed_drinks
+    larger = max(camera_total, billed_drinks)
+    match_rate = round(min(camera_total, billed_drinks) / larger * 100, 2) if larger else 100.0
+    direction = "equal" if difference == 0 else "camera_over" if difference > 0 else "camera_under"
+
+    return {
+        "billedDrinkQty": billed_drinks,
+        "cameraCupTotal": camera_total,
+        "difference": _json_quantity(difference),
+        "absoluteDifference": _json_quantity(abs(difference)),
+        "differenceDirection": direction,
+        "matchRate": match_rate,
+        "isComparable": True,
+        "status": "matched" if difference == 0 else "not_matched",
+        "message": (
+            "Billing and AI camera daily cup counts match exactly."
+            if difference == 0
+            else "Billing and AI camera daily cup counts do not match."
+        ),
+    }
+
+
 def get_dashboard_snapshot(sales_date=None):
     sales_date = sales_date or _today_ist()
     data = _request_pos_sales(sales_date)
@@ -315,19 +371,6 @@ def get_dashboard_snapshot(sales_date=None):
         group["totalQty"] for group in groups if group["key"] != "biscuits"
     )
 
-    camera_total = (
-        camera.get("latest", {}).get("cupCount") if camera.get("latest") else None
-    )
-    if camera_total is None:
-        match_rate = None
-        difference = None
-        match_status = "waiting_for_camera"
-    else:
-        difference = camera_total - billed_drinks
-        larger = max(camera_total, billed_drinks)
-        match_rate = round((min(camera_total, billed_drinks) / larger * 100), 2) if larger else 100.0
-        match_status = "matched" if match_rate >= 98 else "minor_difference" if match_rate >= 95 else "not_matched"
-
     return {
         "date": data.get("date", sales_date),
         "outlet": data.get("outlet", {}),
@@ -335,15 +378,7 @@ def get_dashboard_snapshot(sales_date=None):
         "groups": groups,
         "items": items,
         "camera": camera,
-        "reconciliation": {
-            "billedDrinkQty": billed_drinks,
-            "cameraCupTotal": camera_total,
-            "difference": difference,
-            "matchRate": match_rate,
-            "isComparable": camera_total is not None,
-            "status": match_status,
-            "message": "Daily billed drink quantity compared with the latest AI cumulative cup count.",
-        },
+        "reconciliation": _reconcile_counts(billed_drinks, camera),
         "meta": {
             "source": "Aaladipattiyan POS",
             "itemCodesRequested": len(_unique_codes()),

@@ -71,9 +71,12 @@ function App() {
   const daily = camera?.daily;
   const match = snapshot?.reconciliation;
   const matchLabel = {
-    matched: 'Matched', minor_difference: 'Minor difference',
-    not_matched: 'Not matched', waiting_for_camera: 'Waiting for camera',
+    matched: 'Exact match', not_matched: 'Mismatch detected',
+    not_comparable: 'Cannot compare', waiting_for_camera: 'Waiting for camera',
   }[match?.status] || 'Waiting for data';
+  const differenceLabel = {
+    camera_over: 'Camera above billing', camera_under: 'Camera below billing', equal: 'Exact match',
+  }[match?.differenceDirection] || 'AI minus billing';
 
   return (
     <main className="dashboard-shell">
@@ -116,10 +119,10 @@ function App() {
           <div className="match-flow">
             <article><span>Billing drink quantity</span><strong>{match?.billedDrinkQty ?? '--'}</strong><small>All configured drink categories</small></article>
             <article><span>AI cumulative cups</span><strong>{match?.cameraCupTotal ?? '--'}</strong><small>Latest Neon total for today</small></article>
-            <article><span>Difference</span><strong>{match?.difference ?? '--'}</strong><small>AI minus billing</small></article>
-            <article className="camera-health"><span>Match rate</span><strong>{match?.matchRate != null ? `${match.matchRate}%` : '--'}</strong><small>98% or above is matched</small></article>
+            <article><span>Mismatch</span><strong>{match?.absoluteDifference ?? '--'}</strong><small>{differenceLabel}</small></article>
+            <article className="camera-health"><span>Match rate</span><strong>{match?.matchRate != null ? `${match.matchRate}%` : '--'}</strong><small>Only equal totals are matched</small></article>
           </div>
-          <p className="match-note">Both totals use outlet <strong>{snapshot?.outlet?.code || 'UPK'}</strong>, date <strong>{snapshot?.date || selectedDate}</strong> and India time.</p>
+          <p className="match-note">{match?.message} Both totals use outlet <strong>{snapshot?.outlet?.code || 'UPK'}</strong>, date <strong>{snapshot?.date || selectedDate}</strong> and India time.</p>
         </section>
         <section className="content-grid single"><article className="panel">
           <div className="panel-heading"><div><h2>Item Wise Count</h2><p>{snapshot?.meta?.itemCodesRequested || 0} POS item codes · updated {formatTime(snapshot?.meta?.lastUpdated)}</p></div><span className={refreshing ? 'status-dot active' : 'status-dot'} /></div>
