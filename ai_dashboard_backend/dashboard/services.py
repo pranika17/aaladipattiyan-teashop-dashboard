@@ -193,6 +193,7 @@ def _normalise_pos_items(api_items):
                 "totalBills": int(raw_item.get("totalBills") or 0),
                 "hadSalesToday": bool(raw_item.get("hadSalesToday")),
                 "foundInPOS": raw_item.get("foundInPOS", True),
+                "returnedByBilling": True,
             }
             continue
         item = by_code[code]
@@ -207,7 +208,11 @@ def _normalise_pos_items(api_items):
     for code in _unique_codes():
         item = by_code.get(code, {
             "itemCode": code, "totalQty": 0, "totalBills": 0,
-            "hadSalesToday": False, "foundInPOS": False,
+            # Many POS sales endpoints omit valid codes that had no sales.
+            # The supplied catalog confirms these codes exist; absence is not
+            # an error unless the API explicitly returns foundInPOS=false.
+            "hadSalesToday": False, "foundInPOS": True,
+            "returnedByBilling": False,
         })
         item["itemName"] = item.get("itemName") or ITEM_NAMES[code]
         item["localCategory"] = code_groups[code]

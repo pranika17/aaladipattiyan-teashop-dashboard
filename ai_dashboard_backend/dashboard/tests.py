@@ -51,6 +51,10 @@ class ReconciliationTests(TestCase):
         self.assertEqual(tea["itemName"], "Bus Driver Tea")
         self.assertEqual(tea["totalQty"], 4)
         self.assertEqual(len(result["items"]), 49)
+        unsold = next(item for item in result["items"] if item["itemCode"] == "BMM001")
+        self.assertTrue(unsold["foundInPOS"])
+        self.assertFalse(unsold["returnedByBilling"])
+        self.assertEqual(unsold["totalQty"], 0)
 
     @patch("dashboard.services._camera_snapshot", return_value={"latest": None})
     @patch("dashboard.services._request_pos_sales")

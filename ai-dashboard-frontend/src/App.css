@@ -717,7 +717,7 @@ td:nth-child(6) {
 }
 
 .item-status.sold { background: #dcefe3; color: var(--green); }
-.item-status.not-returned-by-billing { background: #fff0c2; color: #8a5a00; }
+.item-status.billing-code-error { background: #f7ddd5; color: var(--red); }
 
 tbody tr {
   transition: background 150ms ease;
