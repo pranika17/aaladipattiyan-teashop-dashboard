@@ -92,6 +92,42 @@ ITEM_GROUPS = {
     },
 }
 
+# Display fallbacks supplied by the billing team. POS quantities remain the
+# source of truth; these values are used only when itemName is absent.
+ITEM_NAMES = {
+    "BMM001": "Badam Milk Parcel", "2345-BB": "Biscuit",
+    "BIS": "Biscuit - 3Pcs", "2740-BP": "Biscuit Packet",
+    "2687-BSC": "Black Sukku Coffee", "2692-KSPPC": "Black Sukku Coffee Parcel",
+    "BDC-01": "Bus Driver Coffee", "BDT": "Bus Driver Tea",
+    "1QQ": "Coffee Parcel with Cover 1.5", "002-CSC": "Coffee Snacks combo",
+    "CWH_01": "Coffee with hugs", "EMP03-BB": "Employee Biscuit",
+    "EMP01-EC": "Employee Coffee", "EMP02-ET": "Employee Tea",
+    "2738-HKC": "Halwa Kaaram Coffee", "BMM": "Hot Badam Milk",
+    "2739-KC": "Kaaram Coffee", "2678-KCM": "Karupatti Coffee Medium",
+    "2681-KCP": "Karupatti Coffee Parcel Half Cup",
+    "2683-KCPC": "Karupatti Coffee Parcel With Cover Half Cup",
+    "2679-KKCM": "Karupatti Kadusu Coffee Medium",
+    "2682-KKCP": "Karupatti Kadusu Coffee Parcel Half Cup",
+    "2684-KKCPC": "Karupatti Kadusu Coffee Parcel With Cover Half Cup",
+    "2694-KKTM": "Karupatti Kadusu Tea Medium",
+    "2696-KKTP": "Karupatti Kadusu Tea Parcel Half Cup",
+    "2698-KKTPC": "Karupatti Kadusu Tea Parcel With Cover Half Cup",
+    "2688-KMM": "Karupatti Milk Medium", "2685-KMPC": "Karupatti Milk Parcel -WC",
+    "2690-KMP": "Karupatti Milk Parcel -WTC", "2691-KSP": "Karupatti Sukku Paal",
+    "2692-KSPP": "Karupatti Sukku Paal Parcel", "2693-KTM": "Karupatti Tea Medium",
+    "101-TKTM": "KARUPATTI TEA MEDIUM", "TL001": "Lemon Tea",
+    "TLP001": "Lemon Tea Parcel", "001MT-MT": "Masala Tea",
+    "2686-MGT": "Medium Ginger Tea", "001RT-MP": "Milagu Paal",
+    "1.5Q": "Nattusakkarai Tea parcel 1.5 cup",
+    "2689-NSMM": "Nattusarkarai Milk Medium", "2692-NTM": "Nattusarkarai Tea Medium",
+    "102-TNTM": "NATTUSARKARAI TEA MEDIUM",
+    "2695-NTP": "Nattusarkarai Tea Parcel Half Cup",
+    "2697-NTPC": "Nattusarkarai Tea Parcel With Cover Half Cup",
+    "2347-PC": "Police Coffee", "2680-CSM": "Sukku Coffee Medium",
+    "SKP 001": "Sukku Coffee Parcel Half Cup", "2699-SKC": "Sweet Kaaram Coffee",
+    "TSC222": "Tea Sacks Combo",
+}
+
 
 def _quantity(value):
     """Preserve decimal POS quantities instead of truncating them to integers."""
@@ -140,6 +176,44 @@ def _code_groups():
         for code in group["codes"]:
             groups[code] = group["label"]
     return groups
+
+
+def _normalise_pos_items(api_items):
+    """Build one catalog row per code and aggregate its POS sales rows."""
+    code_groups = _code_groups()
+    by_code = {}
+    for raw_item in api_items:
+        code = raw_item.get("itemCode")
+        if code not in code_groups:
+            continue
+        if code not in by_code:
+            by_code[code] = {
+                **raw_item,
+                "totalQty": _quantity(raw_item.get("totalQty")),
+                "totalBills": int(raw_item.get("totalBills") or 0),
+                "hadSalesToday": bool(raw_item.get("hadSalesToday")),
+                "foundInPOS": raw_item.get("foundInPOS", True),
+            }
+            continue
+        item = by_code[code]
+        item["totalQty"] += _quantity(raw_item.get("totalQty"))
+        item["totalBills"] += int(raw_item.get("totalBills") or 0)
+        item["hadSalesToday"] = item["hadSalesToday"] or bool(raw_item.get("hadSalesToday"))
+        item["foundInPOS"] = item["foundInPOS"] or raw_item.get("foundInPOS", True)
+        if not item.get("itemName") and raw_item.get("itemName"):
+            item["itemName"] = raw_item["itemName"]
+
+    items = []
+    for code in _unique_codes():
+        item = by_code.get(code, {
+            "itemCode": code, "totalQty": 0, "totalBills": 0,
+            "hadSalesToday": False, "foundInPOS": False,
+        })
+        item["itemName"] = item.get("itemName") or ITEM_NAMES[code]
+        item["localCategory"] = code_groups[code]
+        item["totalQty"] = _json_quantity(item.get("totalQty"))
+        items.append(item)
+    return items
 
 
 def _request_pos_sales(sales_date):
@@ -333,10 +407,7 @@ def _reconcile_counts(billed_drinks, camera):
 def get_dashboard_snapshot(sales_date=None):
     sales_date = sales_date or _today_ist()
     data = _request_pos_sales(sales_date)
-    items = data.get("items", [])
-    code_groups = _code_groups()
-    for item in items:
-        item["localCategory"] = code_groups.get(item.get("itemCode"))
+    items = _normalise_pos_items(data.get("items", []))
 
     by_code = {item.get("itemCode"): item for item in items}
 

@@ -39,6 +39,36 @@ class PartnerApiKeyTests(TestCase):
 
 
 class ReconciliationTests(TestCase):
+    @patch("dashboard.services._camera_snapshot", return_value={"latest": None})
+    @patch("dashboard.services._request_pos_sales")
+    def test_catalog_fills_missing_name_but_sales_stay_from_pos(self, pos, camera):
+        pos.return_value = {
+            "date": "2026-07-17", "outlet": {"code": "UPK"},
+            "items": [{"itemCode": "BDT", "totalQty": 4, "totalBills": 2}],
+        }
+        result = get_dashboard_snapshot("2026-07-17")
+        tea = next(item for item in result["items"] if item["itemCode"] == "BDT")
+        self.assertEqual(tea["itemName"], "Bus Driver Tea")
+        self.assertEqual(tea["totalQty"], 4)
+        self.assertEqual(len(result["items"]), 49)
+
+    @patch("dashboard.services._camera_snapshot", return_value={"latest": None})
+    @patch("dashboard.services._request_pos_sales")
+    def test_duplicate_pos_rows_for_one_code_are_aggregated(self, pos, camera):
+        pos.return_value = {
+            "date": "2026-07-17", "outlet": {"code": "UPK"},
+            "items": [
+                {"itemCode": "2683-KCPC", "itemName": "Parcel -WC", "totalQty": 2, "totalBills": 1},
+                {"itemCode": "2683-KCPC", "itemName": "Parcel With Cover", "totalQty": 3, "totalBills": 2},
+            ],
+        }
+        result = get_dashboard_snapshot("2026-07-17")
+        coffee = next(item for item in result["items"] if item["itemCode"] == "2683-KCPC")
+        coffee_group = next(group for group in result["groups"] if group["key"] == "coffee")
+        self.assertEqual(coffee["totalQty"], 5)
+        self.assertEqual(coffee["totalBills"], 3)
+        self.assertEqual(coffee_group["totalQty"], 5)
+
     @patch("dashboard.services._camera_snapshot")
     @patch("dashboard.services._request_pos_sales")
     def test_billed_drinks_exclude_biscuits_and_frames_are_not_summed(self, pos, camera):
