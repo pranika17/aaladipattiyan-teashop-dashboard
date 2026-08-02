@@ -5,7 +5,9 @@ const BILLING_API = process.env.REACT_APP_DASHBOARD_API || 'http://localhost:800
 const CAMERA_API = process.env.REACT_APP_CAMERA_API || BILLING_API.replace('/dashboard/live/', '/camera/live/');
 // The POS integration allows 10,000 requests/day. A 30-second display refresh
 // stays live while remaining safely below the documented quota.
-const REFRESH_MS = 30000;
+const BILLING_REFRESH_MS = 30000;
+const CAMERA_REFRESH_MS = 5000;
+const CAMERA_STALE_MS = 30000;
 
 function todayInIndia() {
   return new Intl.DateTimeFormat('en-CA', {
@@ -16,8 +18,13 @@ function todayInIndia() {
 function formatTime(value) {
   if (!value) return '--';
   return new Intl.DateTimeFormat('en-IN', {
-    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', second: '2-digit',
   }).format(new Date(value));
+}
+
+function isCameraStale(value) {
+  if (!value) return true;
+  return Date.now() - new Date(value).getTime() > CAMERA_STALE_MS;
 }
 
 function cameraAge(value) {
@@ -31,6 +38,7 @@ function cameraAge(value) {
 function App() {
   const isCamera = window.location.pathname.toLowerCase().startsWith('/camera');
   const apiUrl = isCamera ? CAMERA_API : BILLING_API;
+  const refreshMs = isCamera ? CAMERA_REFRESH_MS : BILLING_REFRESH_MS;
   const [selectedDate, setSelectedDate] = useState(todayInIndia());
   const [snapshot, setSnapshot] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -41,7 +49,7 @@ function App() {
     silent ? setRefreshing(true) : setLoading(true);
     setError('');
     try {
-      const response = await fetch(`${apiUrl}?date=${selectedDate}`);
+      const response = await fetch(`${apiUrl}?date=${selectedDate}`, { cache: 'no-store' });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Dashboard API failed');
       setSnapshot(data);
@@ -55,9 +63,9 @@ function App() {
 
   useEffect(() => { loadDashboard(); }, [loadDashboard]);
   useEffect(() => {
-    const timer = setInterval(() => loadDashboard({ silent: true }), REFRESH_MS);
+    const timer = setInterval(() => loadDashboard({ silent: true }), refreshMs);
     return () => clearInterval(timer);
-  }, [loadDashboard]);
+  }, [loadDashboard, refreshMs]);
 
   const sortedItems = useMemo(() => [...(snapshot?.items || [])].sort((a, b) =>
     ((b.totalQty || 0) - (a.totalQty || 0)) ||
@@ -69,6 +77,7 @@ function App() {
   const camera = snapshot?.camera;
   const latest = camera?.latest;
   const daily = camera?.daily;
+  const cameraStale = isCameraStale(latest?.capturedAt);
   const match = snapshot?.reconciliation;
   const matchLabel = {
     matched: 'Exact match', not_matched: 'Mismatch detected',
@@ -141,10 +150,10 @@ function App() {
           <article className="summary-tile primary"><span>Snapshots Today</span><strong>{daily?.sampleCount ?? 0}</strong><small>Neon camera rows received</small></article>
           <article className="summary-tile"><span>AI Cups Today</span><strong>{latest?.cupCount ?? '--'}</strong><small>Latest cumulative count</small></article>
           <article className="summary-tile"><span>Peak Staff</span><strong>{daily?.maxStaff ?? '--'}</strong><small>Highest detection today</small></article>
-          <article className="summary-tile"><span>Last Update</span><strong>{formatTime(latest?.capturedAt)}</strong><small>{cameraAge(latest?.capturedAt)}</small></article>
+          <article className="summary-tile"><span>Last Update (IST)</span><strong>{formatTime(latest?.capturedAt)}</strong><small>{cameraAge(latest?.capturedAt)}</small></article>
         </section>
         <section className="camera-panel" aria-label="Live camera counts">
-          <div className="camera-heading"><div><p className="eyebrow">AI Camera</p><h2>Latest Outlet Snapshot</h2></div><div className="camera-status"><span className={latest ? 'status-dot' : 'status-dot offline'} />{latest ? `Live · ${cameraAge(latest.capturedAt)}` : (camera?.message || 'Waiting for data')}</div></div>
+          <div className="camera-heading"><div><p className="eyebrow">AI Camera</p><h2>Latest Outlet Snapshot</h2></div><div className="camera-status"><span className={latest && !cameraStale ? 'status-dot' : 'status-dot offline'} />{latest ? `${cameraStale ? 'Stale' : 'Live'} · ${cameraAge(latest.capturedAt)}` : (camera?.message || 'Waiting for data')}</div></div>
           <div className="camera-grid">
             <article className="camera-tile"><span>Cumulative Cups</span><strong>{latest?.cupCount ?? '--'}</strong><small>AI total for selected date</small></article>
             <article className="camera-tile"><span>Staff</span><strong>{latest?.staffCount ?? '--'}</strong><small>Currently detected</small></article>

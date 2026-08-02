@@ -13,6 +13,8 @@ def _cors(response):
     response["Access-Control-Allow-Origin"] = allowed_origin
     response["Access-Control-Allow-Methods"] = "GET, OPTIONS"
     response["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+    response["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response["Pragma"] = "no-cache"
     return response
 
 
