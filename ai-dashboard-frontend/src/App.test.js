@@ -15,6 +15,7 @@ test('renders the separate billing dashboard', () => {
   expect(screen.getByRole('heading', { name: /billing dashboard/i })).toBeInTheDocument();
   expect(screen.getByText(/^total cups$/i)).toBeInTheDocument();
   expect(screen.getByText(/^total bills$/i)).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: /billing item list/i })).toBeInTheDocument();
   expect(screen.queryByText(/cup count difference/i)).not.toBeInTheDocument();
 });
 

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import './App.css';
 
 const BILLING_API = process.env.REACT_APP_DASHBOARD_API || 'http://localhost:8000/api/dashboard/live/';
@@ -26,6 +26,14 @@ function cameraAge(value) {
   if (seconds < 60) return `${seconds}s ago`;
   if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
   return `${Math.floor(seconds / 3600)}h ago`;
+}
+
+function simpleCategory(item) {
+  const category = String(item.category || item.localCategory || '').toLowerCase();
+  if (category.includes('tea') && !category.includes('coffee')) return 'Tea';
+  if (category.includes('coffee') && !category.includes('tea')) return 'Coffee';
+  if (category.includes('milk') || category.includes('kadusu') || category.includes('beverage')) return 'Beverage';
+  return 'Other';
 }
 
 function App() {
@@ -64,6 +72,9 @@ function App() {
   }, [loadDashboard, refreshMs]);
 
   const groups = snapshot?.groups || [];
+  const sortedItems = useMemo(() => [...(snapshot?.items || [])].sort((a, b) =>
+    simpleCategory(a).localeCompare(simpleCategory(b)) ||
+    String(a.itemName || a.itemCode).localeCompare(String(b.itemName || b.itemCode))), [snapshot]);
   const drinkGroups = groups.filter((group) => group.key !== 'biscuits');
   const drinkQty = groups
     .filter((group) => group.key !== 'biscuits')
@@ -115,6 +126,17 @@ function App() {
             <strong>{loading ? '--' : group.totalQty}</strong><small>items sold across {group.totalBills} bills</small>
           </article>)}
         </section>
+        <section className="content-grid single"><article className="panel">
+          <div className="panel-heading"><div><h2>Billing Item List</h2><p>Tea, coffee, beverages and other billed products</p></div></div>
+          <div className="table-wrap"><table><thead><tr><th>Item</th><th>Category</th><th>Item code</th><th>Quantity</th><th>Bills</th></tr></thead><tbody>
+            {sortedItems.map((item) => <tr key={`${item.itemCode}-${item.itemName}`}>
+              <td>{item.itemName || 'Name not returned'}</td>
+              <td><span className={`item-status category-${simpleCategory(item).toLowerCase()}`}>{simpleCategory(item)}</span></td>
+              <td>{item.itemCode}</td><td>{item.totalQty || 0}</td><td>{item.totalBills || 0}</td>
+            </tr>)}
+            {!loading && sortedItems.length === 0 && <tr><td colSpan="5" className="empty-state">No billing items returned for this date.</td></tr>}
+          </tbody></table></div>
+        </article></section>
       </>}
 
       {isCamera && <>
