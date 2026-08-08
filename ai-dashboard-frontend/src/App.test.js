@@ -13,17 +13,26 @@ test('renders the separate billing dashboard', () => {
   window.history.pushState({}, '', '/billing');
   render(<App />);
   expect(screen.getByRole('heading', { name: /billing dashboard/i })).toBeInTheDocument();
-  expect(screen.getByRole('heading', { name: /sales by item/i })).toBeInTheDocument();
-  expect(screen.getByRole('heading', { name: /are all drinks billed/i })).toBeInTheDocument();
+  expect(screen.getByText(/^total cups$/i)).toBeInTheDocument();
+  expect(screen.getByText(/^total bills$/i)).toBeInTheDocument();
+  expect(screen.queryByText(/cup count difference/i)).not.toBeInTheDocument();
 });
 
 test('renders the separate AI camera dashboard', () => {
   window.history.pushState({}, '', '/camera');
   render(<App />);
   expect(screen.getByRole('heading', { name: /ai camera dashboard/i })).toBeInTheDocument();
-  expect(screen.getByRole('heading', { name: /billing and ai camera/i })).toBeInTheDocument();
+  expect(screen.getByText(/^total ai cup count$/i)).toBeInTheDocument();
+  expect(screen.getByText(/^staff count$/i)).toBeInTheDocument();
+  expect(screen.getByText(/^customer count$/i)).toBeInTheDocument();
+  expect(screen.getByText(/^empty count$/i)).toBeInTheDocument();
+});
+
+test('renders mismatch on its own dashboard', () => {
+  window.history.pushState({}, '', '/compare');
+  render(<App />);
+  expect(screen.getByRole('heading', { name: /cup mismatch dashboard/i })).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: /cup count difference/i })).toBeInTheDocument();
   expect(screen.getByText(/^billing cup count$/i)).toBeInTheDocument();
   expect(screen.getByText(/^ai camera cup count$/i)).toBeInTheDocument();
-  expect(screen.getByText(/^running cups total$/i)).toBeInTheDocument();
-  expect(screen.queryByRole('heading', { name: /sales by item/i })).not.toBeInTheDocument();
 });
