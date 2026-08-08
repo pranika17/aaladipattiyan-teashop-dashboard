@@ -218,6 +218,7 @@ h2 {
 
 .alert,
 .dashboard-nav,
+.section-intro,
 .summary-grid,
 .category-grid,
 .camera-panel,
@@ -226,6 +227,33 @@ h2 {
   margin-right: auto;
   max-width: 1320px;
   position: relative;
+}
+
+.section-intro {
+  align-items: center;
+  background: rgba(255, 248, 233, 0.96);
+  border: 1px solid rgba(255, 201, 40, 0.28);
+  border-radius: 8px;
+  display: flex;
+  gap: 28px;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  padding: 14px 18px;
+}
+
+.section-intro h2 { margin: 0; }
+.section-intro .eyebrow { margin-bottom: 4px; }
+.section-intro > p {
+  color: var(--muted);
+  line-height: 1.5;
+  margin: 0;
+  max-width: 670px;
+}
+
+.heading-help {
+  color: var(--muted);
+  font-size: 0.8rem;
+  margin: 5px 0 0;
 }
 
 .dashboard-nav {
@@ -307,6 +335,8 @@ h2 {
 .match-flow {
   gap: 12px;
 }
+
+.camera-total-flow article { min-height: 128px; }
 
 .match-flow article {
   background: #fff3d5;
@@ -813,6 +843,12 @@ tbody tr:hover {
   }
 
   .dashboard-nav { flex-direction: column; }
+
+  .section-intro {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
+  }
 
   .brand-block {
     align-items: flex-start;
